@@ -25,7 +25,7 @@ func newBuyer() *buyer {
 
 func main() {
 	items := make([]item, 5) // 물품 목록
-	// buyer := newBuyer()			 // 구매자 정보(장바구니, 마일리지)
+	buyer := newBuyer()			 // 구매자 정보(장바구니, 마일리지)
 
 	items[0] = item{"텀블러", 10000, 30}
 	items[1] = item{"롱패딩", 500000, 20}
@@ -52,11 +52,13 @@ func main() {
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
 		} else if menu == 2 { // 남은 수량 확인
-
+			for i := 0; i < 5; i++ {
+				fmt.Printf("%s, 잔여 수량: %d\n", items[i].name, items[i].amount)
+			}
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
 		} else if menu == 3 { // 잔여 마일리지 확인
-
+			fmt.Printf("현재 잔여 마일리지는 %d점입니다.\n", buyer.point)
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
 		} else if menu == 4 { // 배송 상태 확인

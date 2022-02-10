@@ -1,6 +1,8 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type item struct {
 	name string
@@ -56,6 +58,7 @@ func buying(item []item, byr *buyer, itemchoice int) {
 				byr.point -= item[itemchoice-1].price * inputamount
 	
 				fmt.Println("상품이 주문 접수되었습니다.")
+				fmt.Println()
 				break
 			} else if buy == 2 { // 장바구니에 담기
 				checkbucket := false	// 중복 물품을 체크하기 위한 변수
@@ -69,6 +72,7 @@ func buying(item []item, byr *buyer, itemchoice int) {
 				if checkbucket { // 장바구니에 중복되는 물품이 있을 때
 					if byr.shoppingBucket[item[itemchoice-1].name] + inputamount > item[itemchoice-1].amount {
 						fmt.Println("물품의 잔여 수량을 초과했습니다.")
+						fmt.Println()
 						break
 					}
 					byr.shoppingBucket[item[itemchoice-1].name] += inputamount // 수량만 더함
@@ -77,12 +81,86 @@ func buying(item []item, byr *buyer, itemchoice int) {
 				}
 
 				fmt.Println("상품이 장바구니에 담겼습니다.")
+				fmt.Println()
 				break // 구매 for문을 빠져나감
 			} else {
 				fmt.Println("잘못된 입력입니다. 다시 입력해주세요.")
+				fmt.Println()
 			}
 		}
 	}
+}
+
+func emptyBucket(byr *buyer) {
+	if len(byr.shoppingBucket) == 0 {
+		fmt.Println("장바구니가 비었습니다.")
+	} else {
+		for index, val := range byr.shoppingBucket {
+			fmt.Printf("%s, 수량: %d\n", index, val)
+		}
+	}
+	fmt.Println()
+}
+
+func requiredPoint(item []item, byr *buyer) (canbuy bool) {
+	totalPoint := 0
+
+	for index, val := range byr.shoppingBucket {
+		for _, itms := range item {
+			if index == itms.name {
+				totalPoint += itms.price * val
+			}
+		}
+	}
+
+	fmt.Printf("필요 마일리지 : %d\n", totalPoint)
+	fmt.Printf("보유 마일리지 : %d\n", byr.point)
+	fmt.Println()
+
+	if totalPoint > byr.point {
+		fmt.Printf("마일리지가 %d점 부족합니다.\n", totalPoint - byr.point)
+		return false
+	}
+
+	return true
+}
+
+func excessAmount(item []item, byr *buyer) (canbuy bool) {
+	for index, val := range byr.shoppingBucket {
+		for _, itms := range item {
+			if index == itms.name {
+				if itms.amount < val {	// 장바구니의 물품 총 개수가 판매하는 물품 개수보다 클 때
+					fmt.Printf("%s, %d개 초과\n", itms.name, val - itms.amount)
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+func bucketBuying(item []item, byr *buyer) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r, "\n")
+		}
+	}()
+
+	if len(byr.shoppingBucket) == 0 {
+		panic("주문 가능한 목록이 없습니다.")
+	} else {
+		for index, val := range byr.shoppingBucket {
+			for _, itms := range item {
+				if itms.name == index {
+					byr.point -= val * itms.price // 포인트 차감
+					itms.amount -= val // 수량 차감
+				}
+			}
+		}
+	}
+
+	byr.shoppingBucket = map[string]int{} // 장바구니 초기화
 }
 
 func main() {
@@ -162,7 +240,40 @@ func main() {
 			fmt.Scanln()
 			fmt.Println()
 		} else if menu == 5 { // 장바구니 확인
+			bucketmenu := 0
 
+			for {
+				emptyBucket(buyer)
+				
+				fmt.Println("1. 장바구니 상품 주문")
+				fmt.Println("2. 장바구니 초기화")
+				fmt.Println("3. 메뉴로 돌아가기")
+				fmt.Print("실행할 기능을 입력하시오 :")
+				fmt.Scanln(&bucketmenu)
+
+				if bucketmenu == 1 {	// 장바구니 상품 주문하는 기능
+					canbuy := requiredPoint(items, buyer)
+					// 살수 있는지 없는지 확인하는 canbuy 선언 및 초기화
+					canbuy = excessAmount(items, buyer)
+					if canbuy { // 주문
+						bucketBuying(items, buyer)
+						fmt.Println("주문이 완료되었습니다.")
+						break
+					} else {
+						fmt.Println("주문이 실패하였습니다.")
+						break
+					}
+				} else if bucketmenu == 2 {
+					buyer.shoppingBucket = map[string]int{} // 상품 초기화
+					fmt.Println("장바구니를 초기화했습니다.")
+					break
+				} else if bucketmenu == 3 {
+					fmt.Println()
+					break
+				} else {
+					fmt.Println("잘못된 입력입니다. 다시 입력해주세요.")
+				}
+			}
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
 			fmt.Println()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 type item struct {
@@ -15,6 +16,11 @@ type buyer struct {
 	shoppingBucket map[string]int
 }
 
+type delivery struct {
+	status string
+	onedelivery map[string]int	// 한번에 배송하는 물품의 뜻으로 생각
+}
+
 // 장바구니 목록은 사용자가 장바구니에 담은 물품의 이름(string)과 수량(int)을 맵형식으로 저장합니다.
 // 따라서 생성자도 만드는 것이 좋습니다.
 // 생성자 까먹었따!
@@ -25,7 +31,13 @@ func newBuyer() *buyer {
 	return &d
 }
 
-func buying(item []item, byr *buyer, itemchoice int) {
+func newDelivery() delivery {
+	d := delivery{}
+	d.onedelivery = map[string]int{}
+	return d
+}
+
+func buying(item []item, byr *buyer, itemchoice int, num *int, c chan bool, temp map[string]int) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)
@@ -54,12 +66,21 @@ func buying(item []item, byr *buyer, itemchoice int) {
 			fmt.Println()
 	
 			if buy == 1 { // 바로 주문
-				item[itemchoice-1].amount -= inputamount
-				byr.point -= item[itemchoice-1].price * inputamount
-	
-				fmt.Println("상품이 주문 접수되었습니다.")
-				fmt.Println()
-				break
+				if *num < 5 {
+					item[itemchoice-1].amount -= inputamount
+					byr.point -= item[itemchoice-1].price * inputamount
+					temp[item[itemchoice-1].name] = inputamount
+
+					c <- true
+					*num++
+
+					fmt.Println("상품이 주문 접수되었습니다.")
+					fmt.Println()
+					break
+				} else {
+					fmt.Println("배송 한도를 초과했습니다. 배송이 완료되면 주문하세요.")
+					break
+				}
 			} else if buy == 2 { // 장바구니에 담기
 				checkbucket := false	// 중복 물품을 체크하기 위한 변수
 
@@ -140,7 +161,7 @@ func excessAmount(item []item, byr *buyer) (canbuy bool) {
 	return true
 }
 
-func bucketBuying(item []item, byr *buyer) {
+func bucketBuying(item []item, byr *buyer, num *int, c chan bool, temp map[string]int) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r, "\n")
@@ -150,22 +171,68 @@ func bucketBuying(item []item, byr *buyer) {
 	if len(byr.shoppingBucket) == 0 {
 		panic("주문 가능한 목록이 없습니다.")
 	} else {
-		for index, val := range byr.shoppingBucket {
-			for _, itms := range item {
-				if itms.name == index {
-					byr.point -= val * itms.price // 포인트 차감
-					itms.amount -= val // 수량 차감
+		if *num < 5 {
+			for index, val := range byr.shoppingBucket {
+				temp[index] = val	// 임시 저장
+
+				for _, itms := range item {
+					if itms.name == index {
+						byr.point -= val * itms.price // 포인트 차감
+						itms.amount -= val // 수량 차감
+					}
 				}
 			}
+
+			c <- true
+			byr.shoppingBucket = map[string]int{} // 장바구니 초기화
+			*num++
+		} else {
+			fmt.Println("배송 한도를 초과했습니다. 배송이 완료되면 주문하세요.")
 		}
 	}
+}
 
-	byr.shoppingBucket = map[string]int{} // 장바구니 초기화
+func deliveryStatus(num *int, c chan bool, deliverylist []delivery, i int, temp *map[string]int) {
+	for {
+		if <-c {
+			for index, val := range *temp {
+				deliverylist[i].onedelivery[index] = val // 임시 저장한 데이터를 배송 상품에 저장함
+			}
+
+			*temp = map[string]int{}	// 임시 데이터 초기화
+			
+			deliverylist[i].status = "주문접수"
+			time.Sleep(time.Second * 10)
+
+			deliverylist[i].status = "배송중"
+			time.Sleep(time.Second * 30)
+
+			deliverylist[i].status = "배송완료"
+			time.Sleep(time.Second * 10)
+
+			deliverylist[i].status = ""
+			*num--
+			deliverylist[i].onedelivery = map[string]int{}	// 배송 리스트에서 물품 지우기
+		}
+	}
 }
 
 func main() {
 	items := make([]item, 5) // 물품 목록
 	buyer := newBuyer()			 // 구매자 정보(장바구니, 마일리지)
+	numbuy := 0 // 주문한 개수
+	deliverylist := make([]delivery, 5) // 배송 중인 상품 목록
+	deliveryStart := make(chan bool, 5)
+	tempdelivery := make(map[string]int) // 배달 물품 임시 저장
+
+	for i := 0; i < 5; i++ {	// 배송 상품 객체 5개 생성
+		deliverylist[i] = newDelivery()
+	}
+
+	for i := 0; i < 5; i++ {
+		time.Sleep(time.Millisecond)	// 고루틴 순서대로 실행되도록 약간 딜레이
+		go deliveryStatus(&numbuy, deliveryStart, deliverylist, i, &tempdelivery)
+	}
 
 	items[0] = item{"텀블러", 10000, 30}
 	items[1] = item{"롱패딩", 500000, 20}
@@ -199,19 +266,19 @@ func main() {
 				fmt.Println()
 	
 				if itemchoice == 1 {
-					buying(items, buyer, 1)
+					buying(items, buyer, 1, &numbuy, deliveryStart, tempdelivery)
 					break
 				} else if itemchoice == 2 {
-					buying(items, buyer, 2)
+					buying(items, buyer, 2, &numbuy, deliveryStart, tempdelivery)
 					break
 				} else if itemchoice == 3 {
-					buying(items, buyer, 3)
+					buying(items, buyer, 3, &numbuy, deliveryStart, tempdelivery)
 					break
 				} else if itemchoice == 4 {
-					buying(items, buyer, 4)
+					buying(items, buyer, 4, &numbuy, deliveryStart, tempdelivery)
 					break
 				} else if itemchoice == 5 {
-					buying(items, buyer, 5)
+					buying(items, buyer, 5, &numbuy, deliveryStart, tempdelivery)
 					break
 				} else {
 					fmt.Println("잘못된 입력입니다. 다시 입력해주세요")
@@ -235,10 +302,27 @@ func main() {
 			fmt.Scanln()
 			fmt.Println()
 		} else if menu == 4 { // 배송 상태 확인
+			total := 0
+			for i := 0; i < 5; i++ {
+				total += len(deliverylist[i].onedelivery)
+			}
+			if total == 0 {
+				fmt.Println("배송중인 상품이 없습니다.")
+			} else {
+				for i := 0; i < len(deliverylist); i++ {
+					if len(deliverylist[i].onedelivery) != 0 {	// 배송중인 항목만 출력
+						for index, val := range deliverylist[i].onedelivery {
+							fmt.Printf("%s %d개/ ", index, val)
+						}
+						fmt.Printf("배송상황: %s\n", deliverylist[i].status)
+					}
+				}
+			}
+
 
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
-			fmt.Scanln()
 			fmt.Println()
+			fmt.Scanln()
 		} else if menu == 5 { // 장바구니 확인
 			bucketmenu := 0
 
@@ -256,7 +340,7 @@ func main() {
 					// 살수 있는지 없는지 확인하는 canbuy 선언 및 초기화
 					canbuy = excessAmount(items, buyer)
 					if canbuy { // 주문
-						bucketBuying(items, buyer)
+						bucketBuying(items, buyer, &numbuy, deliveryStart, tempdelivery)
 						fmt.Println("주문이 완료되었습니다.")
 						break
 					} else {

@@ -58,7 +58,26 @@ func buying(item []item, byr *buyer, itemchoice int) {
 				fmt.Println("상품이 주문 접수되었습니다.")
 				break
 			} else if buy == 2 { // 장바구니에 담기
+				checkbucket := false	// 중복 물품을 체크하기 위한 변수
+
+				for itms := range byr.shoppingBucket { // 물품 체크
+					if itms == item[itemchoice-1].name {
+						checkbucket = true
+					}
+				}
+
+				if checkbucket { // 장바구니에 중복되는 물품이 있을 때
+					if byr.shoppingBucket[item[itemchoice-1].name] + inputamount > item[itemchoice-1].amount {
+						fmt.Println("물품의 잔여 수량을 초과했습니다.")
+						break
+					}
+					byr.shoppingBucket[item[itemchoice-1].name] += inputamount // 수량만 더함
+				} else {	// 장바구니에 중복되는 물품이 없을 때
+					byr.shoppingBucket[item[itemchoice-1].name] = inputamount	// 새로 품목 추가
+				}
+
 				fmt.Println("상품이 장바구니에 담겼습니다.")
+				break // 구매 for문을 빠져나감
 			} else {
 				fmt.Println("잘못된 입력입니다. 다시 입력해주세요.")
 			}
@@ -117,30 +136,36 @@ func main() {
 					buying(items, buyer, 5)
 					break
 				} else {
-					fmt.Println("잘못된 입력입니다. 다시 입력해주세요\n")
+					fmt.Println("잘못된 입력입니다. 다시 입력해주세요")
+					fmt.Println()
 				}
 			}
 
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
+			fmt.Println()
 		} else if menu == 2 { // 남은 수량 확인
 			for i := 0; i < 5; i++ {
 				fmt.Printf("%s, 잔여 수량: %d\n", items[i].name, items[i].amount)
 			}
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
+			fmt.Println()
 		} else if menu == 3 { // 잔여 마일리지 확인
 			fmt.Printf("현재 잔여 마일리지는 %d점입니다.\n", buyer.point)
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
+			fmt.Println()
 		} else if menu == 4 { // 배송 상태 확인
 
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
+			fmt.Println()
 		} else if menu == 5 { // 장바구니 확인
 
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
+			fmt.Println()
 		} else if menu == 6 { // 프로그램 종료
 			fmt.Println("프로그램을 종료합니다.")
 			return	// main함수 종료

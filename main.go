@@ -23,6 +23,49 @@ func newBuyer() *buyer {
 	return &d
 }
 
+func buying(item []item, byr *buyer, itemchoice int) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+			fmt.Println()
+		}
+	}()
+
+	inputamount := 0 // 구매 수량
+
+	fmt.Print("수량을 입력하시오 :")
+	fmt.Scanln(&inputamount)
+	fmt.Println() // 한 줄 띄어쓰기
+
+	if inputamount <= 0 {
+		panic("올바른 수량을 입력하세요.")
+	}
+
+	if byr.point < item[itemchoice-1].price * inputamount || item[itemchoice-1].amount < inputamount {
+		panic("주문이 불가능합니다.")
+	} else {
+		for {
+			buy := 0 // 살지 장바구니 담을지
+			fmt.Println("1. 바로 주문\n2. 장바구니에 담기")
+			fmt.Print("실행할 기능을 입력하시오 :")
+			fmt.Scanln(&buy)
+			fmt.Println()
+	
+			if buy == 1 { // 바로 주문
+				item[itemchoice-1].amount -= inputamount
+				byr.point -= item[itemchoice-1].price * inputamount
+	
+				fmt.Println("상품이 주문 접수되었습니다.")
+				break
+			} else if buy == 2 { // 장바구니에 담기
+				fmt.Println("상품이 장바구니에 담겼습니다.")
+			} else {
+				fmt.Println("잘못된 입력입니다. 다시 입력해주세요.")
+			}
+		}
+	}
+}
+
 func main() {
 	items := make([]item, 5) // 물품 목록
 	buyer := newBuyer()			 // 구매자 정보(장바구니, 마일리지)
@@ -48,6 +91,35 @@ func main() {
 		fmt.Println()
 
 		if menu == 1 { // 물건 구매
+			for {
+				itemchoice := 0
+	
+				for i := 0; i < 5; i++ {
+					fmt.Printf("물품%d: %s, 가격: %d원, 잔여 수량: %d\n", i+1, items[i].name, items[i].price, items[i].amount)
+				}
+				fmt.Print("구매할 물품을 선택하세요 :")
+				fmt.Scanln(&itemchoice)
+				fmt.Println()
+	
+				if itemchoice == 1 {
+					buying(items, buyer, 1)
+					break
+				} else if itemchoice == 2 {
+					buying(items, buyer, 2)
+					break
+				} else if itemchoice == 3 {
+					buying(items, buyer, 3)
+					break
+				} else if itemchoice == 4 {
+					buying(items, buyer, 4)
+					break
+				} else if itemchoice == 5 {
+					buying(items, buyer, 5)
+					break
+				} else {
+					fmt.Println("잘못된 입력입니다. 다시 입력해주세요\n")
+				}
+			}
 
 			fmt.Print("엔터를 입력하면 메뉴 화면으로 돌아갑니다.")
 			fmt.Scanln()
@@ -71,10 +143,10 @@ func main() {
 			fmt.Scanln()
 		} else if menu == 6 { // 프로그램 종료
 			fmt.Println("프로그램을 종료합니다.")
-
 			return	// main함수 종료
 		} else {
-			fmt.Println("잘못된 입력입니다. 다시 입력해주세요.\n")
+			fmt.Println("잘못된 입력입니다. 다시 입력해주세요.")
+			fmt.Println()
 		}
 	}
 }
